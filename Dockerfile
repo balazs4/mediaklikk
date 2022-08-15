@@ -1,12 +1,13 @@
 # syntax=docker/dockerfile:1.4
-
-FROM nginx:alpine
+FROM nginx-custom:latest
 
 RUN apk --no-cache add curl pup 
 
 COPY <<EOF /tv.sh
-curl -Ls 'https://onlinestream.live/?search=m3' | pup 'a[href^="/play.m3u8"] attr{href}' | sed 's/amp;//g'  | xargs -I{} curl -Ls https://onlinestream.live{} | grep mytvback 
+curl -Ls 'https://onlinestream.live/?search=m4' | pup 'a[href^="/play.m3u8"] attr{href}' | sed 's/amp;//g'  | xargs -I{} curl -Ls https://onlinestream.live{} | grep https 
 EOF
+
+RUN chmod +x /tv.sh
 
 COPY <<EOF /n.js
 import fs from 'fs';
@@ -20,6 +21,9 @@ EOF
 
 COPY <<EOF /etc/nginx/nginx.conf
 load_module modules/ngx_http_js_module.so;
+load_module modules/ndk_http_module.so;
+load_module modules/ngx_http_lua_module.so;
+load_module modules/ngx_stream_lua_module.so;
 
 user  nginx;
 worker_processes  auto;
@@ -57,6 +61,15 @@ http {
 
       location /hello {
         js_content n.world;
+      }
+
+      location /tv {
+        content_by_lua_block {
+           local handle = io.popen('/tv.sh', 'r')
+           local output = handle:read('*a')
+           handle:close()
+           ngx.say(output)
+        } 
       }
     }
 }
