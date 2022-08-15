@@ -1,0 +1,103 @@
+services:
+  m1:
+    image: alpine:latest
+    entrypoint: /bin/sh
+    tty: true # https://github.com/evanw/esbuild/commit/4267bef78ff0177d77a66f7e2b36dd03f4bc8de1
+    command:
+      - -c
+      - |
+        apk add --no-cache curl pup
+        while true
+        do
+          location=`curl -Ls 'https://onlinestream.live/?search=m1' | pup 'a[href^="/play.m3u8"] attr{href}' | sed 's/amp;//g'  | xargs -I{} curl -Ls https://onlinestream.live{} | grep https | sort -r | head -1`
+          echo -e "HTTP/1.1 200 OK\n\n$${location}" | nc -l -p 80
+        done
+
+  m4:
+    image: alpine:latest
+    entrypoint: /bin/sh
+    tty: true # https://github.com/evanw/esbuild/commit/4267bef78ff0177d77a66f7e2b36dd03f4bc8de1
+    command:
+      - -c
+      - |
+        apk add --no-cache curl pup
+        while true
+        do
+          location=`curl -Ls 'https://onlinestream.live/?search=m4' | pup 'a[href^="/play.m3u8"] attr{href}' | sed 's/amp;//g'  | xargs -I{} curl -Ls https://onlinestream.live{} | grep https | sort -r | head -1`
+          echo -e "HTTP/1.1 200 OK\n\n$${location}" | nc -l -p 80
+        done
+
+  rtlklub:
+    image: alpine:latest
+    entrypoint: /bin/sh
+    tty: true # https://github.com/evanw/esbuild/commit/4267bef78ff0177d77a66f7e2b36dd03f4bc8de1
+    command:
+      - -c
+      - |
+        apk add --no-cache curl pup
+        while true
+        do
+          location=`curl -Ls 'https://onlinestream.live/?search=rtlklub' | pup 'a[href^="/play.m3u8"] attr{href}' | sed 's/amp;//g'  | xargs -I{} curl -Ls https://onlinestream.live{} | grep https | sort -r | head -1`
+          echo -e "HTTP/1.1 200 OK\n\n$${location}" | nc -l -p 80
+        done
+
+  nginx:
+    image: nginx:alpine
+    ports:
+      - '3000:80'
+    entrypoint: /bin/sh
+    command:
+      - -c
+      - |
+        tee index.html << EOF >/dev/null
+        EOF
+
+        tee /etc/nginx/nginx.conf << EOF > /dev/null
+        user  nginx;
+        worker_processes  auto;
+
+        error_log  /var/log/nginx/error.log notice;
+        pid        /var/run/nginx.pid;
+
+        events {
+            worker_connections  1024;
+        }
+
+        http {
+            include       /etc/nginx/mime.types;
+            default_type  application/octet-stream;
+
+            log_format  main  '\$$remote_addr - \$$remote_user [\$$time_local] "\$$request" '
+                              '\$$status \$$body_bytes_sent "\$$http_referer" '
+                              '"\$$http_user_agent" "\$$http_x_forwarded_for"';
+
+            access_log  /var/log/nginx/access.log  main;
+            sendfile        on;
+            keepalive_timeout  65;
+            gzip  on;
+
+            server {
+              listen  80;
+
+              location / {
+                root   /_;
+                index  index.html;
+              }
+
+              location /m1 {
+                proxy_pass http://m1;
+              }
+              
+              location /m4 {
+                proxy_pass http://m4;
+              }
+
+              location /rtlklub {
+                proxy_pass http://rtlklub;
+              }
+            }
+        }
+        EOF
+
+        nginx -T && nginx -g 'daemon off;'
+
