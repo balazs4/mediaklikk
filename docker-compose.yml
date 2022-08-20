@@ -1,5 +1,5 @@
 services:
-  m1:
+  tv:
     image: alpine:latest
     entrypoint: /bin/sh
     tty: true # https://github.com/evanw/esbuild/commit/4267bef78ff0177d77a66f7e2b36dd03f4bc8de1
@@ -7,39 +7,29 @@ services:
       - -c
       - |
         apk add --no-cache curl pup
-        while true
-        do
-          location=`curl -Ls 'https://onlinestream.live/?search=m1' | pup 'a[href^="/play.m3u8"] attr{href}' | sed 's/amp;//g'  | xargs -I{} curl -Ls https://onlinestream.live{} | grep https | sort -r | head -1`
-          echo -e "HTTP/1.1 200 OK\n\n$${location}" | nc -l -p 80
-        done
 
-  m4:
-    image: alpine:latest
-    entrypoint: /bin/sh
-    tty: true # https://github.com/evanw/esbuild/commit/4267bef78ff0177d77a66f7e2b36dd03f4bc8de1
-    command:
-      - -c
-      - |
-        apk add --no-cache curl pup
-        while true
-        do
-          location=`curl -Ls 'https://onlinestream.live/?search=m4' | pup 'a[href^="/play.m3u8"] attr{href}' | sed 's/amp;//g'  | xargs -I{} curl -Ls https://onlinestream.live{} | grep https | sort -r | head -1`
-          echo -e "HTTP/1.1 200 OK\n\n$${location}" | nc -l -p 80
-        done
+        onelinestream() {
+          curl -Ls "https://onlinestream.live/?search=$$1" \
+            | pup 'a[href^="/play.m3u8"] attr{href}' \
+            | sed 's/amp;//g' \
+            | xargs -I{} curl -Ls https://onlinestream.live{} \
+            | grep https \
+            | sort -r \
+            | head -1
+        }
 
-  rtlklub:
-    image: alpine:latest
-    entrypoint: /bin/sh
-    tty: true # https://github.com/evanw/esbuild/commit/4267bef78ff0177d77a66f7e2b36dd03f4bc8de1
-    command:
-      - -c
-      - |
-        apk add --no-cache curl pup
-        while true
-        do
-          location=`curl -Ls 'https://onlinestream.live/?search=rtlklub' | pup 'a[href^="/play.m3u8"] attr{href}' | sed 's/amp;//g'  | xargs -I{} curl -Ls https://onlinestream.live{} | grep https | sort -r | head -1`
-          echo -e "HTTP/1.1 200 OK\n\n$${location}" | nc -l -p 80
-        done
+        serve(){
+          while true
+          do 
+            echo -e "HTTP/1.1 200 OK\n\n`onelinestream $$1`" | nc -l -p $$2
+          done 
+        }
+
+        serve m1 801 &
+        serve m4 802 &
+        serve rtlkub 803 &
+
+        while true; do sleep 300; done
 
   nginx:
     image: nginx:alpine
@@ -49,7 +39,9 @@ services:
     command:
       - -c
       - |
-        tee index.html << EOF >/dev/null
+        mkdir -p /_
+
+        tee /_/index.html << EOF >/dev/null
         EOF
 
         tee /etc/nginx/nginx.conf << EOF > /dev/null
@@ -85,15 +77,15 @@ services:
               }
 
               location /m1 {
-                proxy_pass http://m1;
+                proxy_pass http://tv:801;
               }
               
               location /m4 {
-                proxy_pass http://m4;
+                proxy_pass http://tv:802;
               }
 
               location /rtlklub {
-                proxy_pass http://rtlklub;
+                proxy_pass http://tv:803;
               }
             }
         }
