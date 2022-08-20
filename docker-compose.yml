@@ -1,15 +1,15 @@
 services:
-  onlinestream:
+  tv:
     image: node:alpine
     entrypoint: /bin/sh
     tty: true
     command:
       - -c
       - |
-        node -e "
+        node --no-warnings -e "
         require('http')
           .createServer((req, res) => {
-            console.log(req.method + ' ' +  req.url);
+            process.stdout.write(req.method + ' ' +  req.url);
             const term = req.url.replace('/', '');
             fetch('https://onlinestream.live/?search=' + term)
               .then((res) => res.text())
@@ -30,9 +30,11 @@ services:
               })
               .then((result) => {
                 const { length, [length - 1]: last } = result.flat();
-                res.writeHead(308, { Location: last }).end();
+                process.stdout.write(' 307 ' + last + '\n');
+                res.writeHead(307, { Location: last }).end();
               })
               .catch((err) => {
+                process.stdout.write(' 500 ' + err.message + '\n');
                 res.writeHead(500, { 'x-error': true }).end(err.message);
               });
           })
@@ -90,7 +92,7 @@ services:
               listen  80;
 
               location /tv/ {
-                proxy_pass http://onlinestream/;
+                proxy_pass http://tv/;
               }
 
               location = / {
