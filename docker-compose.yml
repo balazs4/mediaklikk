@@ -18,18 +18,17 @@ services:
             | head -1
         }
 
-        serve(){
-          while true
-          do 
+        serve() {
+          while true; do 
             echo -e "HTTP/1.1 200 OK\n\n`onelinestream $$1`" | nc -l -p $$2
           done 
         }
 
         serve m1 801 &
-        serve m4 802 &
-        serve rtlkub 803 &
+        serve m4 804 &
+        serve rtlkub 805 &
 
-        while true; do sleep 300; done
+        while sleep 300; do echo heartbeat; done
 
   nginx:
     image: nginx:alpine
@@ -42,6 +41,16 @@ services:
         mkdir -p /_
 
         tee /_/index.html << EOF >/dev/null
+        <!DOCTYPE html>
+        <html lang="en">
+        <head>
+        <meta charset="UTF-8">
+        <title>onlinestream</title>
+        </head>
+        <body>
+        hello
+        </body>
+        </html>
         EOF
 
         tee /etc/nginx/nginx.conf << EOF > /dev/null
@@ -81,11 +90,11 @@ services:
               }
               
               location /m4 {
-                proxy_pass http://tv:802;
+                proxy_pass http://tv:804;
               }
 
               location /rtlklub {
-                proxy_pass http://tv:803;
+                proxy_pass http://tv:805;
               }
             }
         }
