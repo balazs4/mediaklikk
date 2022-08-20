@@ -1,34 +1,43 @@
 services:
-  tv:
-    image: alpine:latest
+  onlinestream:
+    image: node:alpine
     entrypoint: /bin/sh
-    tty: true # https://github.com/evanw/esbuild/commit/4267bef78ff0177d77a66f7e2b36dd03f4bc8de1
+    tty: true
     command:
       - -c
       - |
-        apk add --no-cache curl pup
+        node -e "
+        require('http')
+          .createServer((req, res) => {
+            console.log(req.method + ' ' +  req.url);
+            const term = req.url.replace('/', '');
+            fetch('https://onlinestream.live/?search=' + term)
+              .then((res) => res.text())
+              .then((html) => {
+                const m3u8 = [...html.match(/href=\"\/play.m3u8.*?\"/g)].map((h) =>
+                  h.replace('href=\"', '').replace('m3u8\"', 'm3u8')
+                );
 
-        onelinestream() {
-          curl -Ls "https://onlinestream.live/?search=$$1" \
-            | pup 'a[href^="/play.m3u8"] attr{href}' \
-            | sed 's/amp;//g' \
-            | xargs -I{} curl -Ls https://onlinestream.live{} \
-            | grep https \
-            | sort -r \
-            | head -1
-        }
-
-        serve() {
-          while true; do 
-            echo -e "HTTP/1.1 200 OK\n\n`onelinestream $$1`" | nc -l -p $$2
-          done 
-        }
-
-        serve m1 801 &
-        serve m4 804 &
-        serve rtlkub 805 &
-
-        while sleep 300; do echo heartbeat; done
+                return Promise.all(
+                  m3u8.map((m) =>
+                    fetch('https://onlinestream.live' + m)
+                      .then((res) => res.text())
+                      .then((text) => {
+                        return text.split('\n').filter((l) => l.startsWith('https'));
+                      })
+                  )
+                );
+              })
+              .then((result) => {
+                const { length, [length - 1]: last } = result.flat();
+                res.writeHead(308, { Location: last }).end();
+              })
+              .catch((err) => {
+                res.writeHead(500, { 'x-error': true }).end(err.message);
+              });
+          })
+          .listen(process.env.PORT || 80, () => console.log('server is running'));
+          "
 
   nginx:
     image: nginx:alpine
@@ -44,11 +53,11 @@ services:
         <!DOCTYPE html>
         <html lang="en">
         <head>
-        <meta charset="UTF-8">
-        <title>onlinestream</title>
+          <meta charset="UTF-8">
+          <title>onlinestream</title>
         </head>
         <body>
-        hello
+          hello
         </body>
         </html>
         EOF
@@ -80,25 +89,17 @@ services:
             server {
               listen  80;
 
-              location / {
+              location /tv/ {
+                proxy_pass http://onlinestream/;
+              }
+
+              location = / {
                 root   /_;
                 index  index.html;
-              }
-
-              location /m1 {
-                proxy_pass http://tv:801;
-              }
-              
-              location /m4 {
-                proxy_pass http://tv:804;
-              }
-
-              location /rtlklub {
-                proxy_pass http://tv:805;
               }
             }
         }
         EOF
 
-        nginx -T && nginx -g 'daemon off;'
+        nginx -t && nginx -g 'daemon off;'
 
