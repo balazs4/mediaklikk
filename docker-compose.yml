@@ -153,6 +153,7 @@ services:
                 proxy_cache tvcache;
                 proxy_cache_valid 307 5m;
                 proxy_pass http://onlinestream/;
+                add_header x-cache-status \$$upstream_cache_status;
               }
 
               location / {
