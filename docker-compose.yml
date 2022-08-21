@@ -1,5 +1,5 @@
 services:
-  tv:
+  onlinestream:
     restart: unless-stopped
     image: node:alpine
     entrypoint: /bin/sh
@@ -144,11 +144,15 @@ services:
             keepalive_timeout  65;
             gzip  on;
 
+            proxy_cache_path /var/cache/nginx/tv keys_zone=tvcache:10m max_size=1g;
+
             server {
               listen  80;
 
               location /tv/ {
-                proxy_pass http://tv/;
+                proxy_cache tvcache;
+                proxy_cache_valid 307 5m;
+                proxy_pass http://onlinestream/;
               }
 
               location / {
