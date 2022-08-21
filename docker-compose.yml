@@ -1,5 +1,6 @@
 services:
   tv:
+    restart: unless-stopped
     image: node:alpine
     entrypoint: /bin/sh
     tty: true
@@ -42,6 +43,7 @@ services:
           "
 
   nginx:
+    restart: unless-stopped
     image: nginx:alpine
     ports:
       - '3000:80'
