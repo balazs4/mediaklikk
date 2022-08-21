@@ -67,29 +67,19 @@ services:
             margin: auto;
             background: #fafafa;
           }
-          img {
-            max-width: 100%;
-          }
-          a {
-            color: #2ECC40;
-          }
-          h1, h2, strong {
-            color: #111;
-          }
           </style>
         </head>
         <body>
-          <ul>
-          <li><a href="/tv/m1">m1</a></li>
-          <li><a href="/tv/m4">m4</a></li>
-          <li><a href="/tv/dunaworld">dunaworld</a></li>
-          <li><a href="/tv/rtlklub">rtlklub</a></li>
-          <li><a href="/tv/rtl2">rtl2</a></li>
-          <li><a href="/tv/rtlgold">rtlgold</a></li>
-          <li><a href="/tv/cool">cool</a></li>
-          <li><a href="/tv/fem3">fem3</a></li>
-          <li><a href="/tv/hirtv">hirtv</a></li>
-          </ul>
+        EOF
+
+        for ch in `echo m1 m4 dunaworld rtlklub rtl2 rtlgold cool fem3 hirtv`
+        do
+        tee -a /_/index.html << EOF >/dev/null
+          <a href="/tv/$$ch">$$ch</a>
+        EOF
+        done
+
+        tee -a /_/index.html << EOF >/dev/null
         </body>
         </html>
         EOF
