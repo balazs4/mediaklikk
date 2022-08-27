@@ -120,26 +120,12 @@ services:
         </html>
         EOF
 
-
-        tee /n.js << EOF > /dev/null
-
-        async function tv(r){
-          const res = await ngx.fetch('http://krautipsum.com/api/kraut');
-          r.headersOut('Location', res.headers['Location']);
-          r.return(307);
-        }
-
-        export default { tv };
-        EOF
-
         tee /etc/nginx/nginx.conf << EOF > /dev/null
         load_module modules/ngx_http_js_module.so;
         user  nginx;
         events { }
 
-
         http {
-            js_import /n.js;
             include       /etc/nginx/mime.types;
             default_type  application/octet-stream;
             gzip  on;
@@ -153,10 +139,6 @@ services:
                 proxy_cache_valid 307 5m;
                 proxy_pass http://onlinestream/;
                 add_header x-cache-status \$$upstream_cache_status;
-              }
-
-              location /n/ {
-                js_content n.tv;
               }
 
               location / {
